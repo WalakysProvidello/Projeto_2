@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Controle de Ação Massiva</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-image: url('v1016-b-09.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            min-height: 100vh;
+            color: white;
+        }
+
+        h2 {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 3px black;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 14px;
+            margin-top: 20px;
+            background-color: white;
+            color: black;
+        }
+
+        th, td {
+            border: 1px solid #999;
+            padding: 8px 12px;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #002060;
+            color: white;
+            text-align: center;
+        }
+
+        td:first-child {
+            text-align: left;
+            background-color: #182a44;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) td:not(:first-child) {
+            background-color: #f2f9ff;
+        }
+
+        td:not(:first-child) {
+            text-align: right;
+        }
+
+        .action-buttons {
+            margin-top: 20px;
+        }
+
+        .btn {
+            margin-right: 10px;
+        }
+
+        .alert {
+            margin-top: 20px;
+        }
+
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .custom-file-label {
+            background-color: #002060;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .custom-file-input {
+            cursor: pointer;
+        }
+
+        .custom-file-input:focus ~ .custom-file-label {
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        .container {
+            background-color: rgba(0, 0, 0, 0.65);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Controle de Ação Massiva</h2>
+
+    <div class="custom-file mb-3">
+        <input type="file" class="custom-file-input" id="csvFileInput" accept=".csv">
+        <label class="custom-file-label" for="csvFileInput">Escolher arquivo CSV</label>
+    </div>
+
+    <div class="action-buttons">
+        <button class="btn btn-primary" onclick="saveTableAsCSV()">Salvar</button>
+        <button class="btn btn-danger" onclick="resetTable()">Reiniciar</button>
+    </div>
+
+    <div id="tableContainer"></div>
+    <div class="loader" id="loader"></div>
+    <div id="feedback" class="alert alert-info" role="alert" style="display: none;"></div>
+</div>
+
+<script>
+    document.getElementById('csvFileInput').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const text = e.target.result;
+            createTableFromCSV(text);
+        };
+        reader.readAsText(file, 'ISO-8859-1');
+    });
+
+    function createTableFromCSV(csvText) {
+        document.getElementById('loader').style.display = 'block';
+        const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim() !== '');
+        if(lines.length === 0) {
+            showFeedback('Arquivo vazio ou inválido', 'danger');
+            document.getElementById('loader').style.display = 'none';
+            return;
+        }
+
+        const data = lines.map(line => line.split(';'));
+        let html = '<table class="table table-bordered"><thead><tr>';
+        data[0].forEach(header => {
+            html += '<th>' + header.trim() + '</th>';
+        });
+        html += '</tr></thead><tbody>';
+        for(let i = 1; i < data.length; i++) {
+            html += '<tr>';
+            data[i].forEach((cell, index) => {
+                let val = cell ? cell.trim() : '';
+                if(val === '') val = '&nbsp;';
+                html += '<td>' + val + '</td>';
+            });
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        document.getElementById('tableContainer').innerHTML = html;
+        document.getElementById('loader').style.display = 'none';
+        showFeedback('Tabela gerada com sucesso!', 'success');
+        localStorage.setItem('tableData', csvText);
+    }
+
+    function saveTableAsCSV() {
+        const csvData = localStorage.getItem('tableData');
+        if (!csvData) {
+            showFeedback('Nenhum dado para salvar.', 'warning');
+            return;
+        }
+        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', 'dados_exportados.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showFeedback('Dados salvos com sucesso!', 'success');
+    }
+
+    function resetTable() {
+        document.getElementById('tableContainer').innerHTML = '';
+        localStorage.removeItem('tableData');
+        showFeedback('Tabela reiniciada com sucesso!', 'success');
+    }
+
+    function showFeedback(message, type) {
+        const feedback = document.getElementById('feedback');
+        feedback.innerText = message;
+        feedback.className = 'alert alert-' + type;
+        feedback.style.display = 'block';
+        setTimeout(() => {
+            feedback.style.display = 'none';
+        }, 3000);
+    }
+
+    document.querySelector('.custom-file-input').addEventListener('change', function (e) {
+        const fileName = e.target.files[0]?.name || 'Escolher arquivo CSV';
+        const label = e.target.nextElementSibling;
+        label.innerText = fileName;
+    });
+
+    window.onload = function() {
+        const savedData = localStorage.getItem('tableData');
+        if (savedData) {
+            createTableFromCSV(savedData);
+        }
+    };
+</script>
+
+</body>
+</html>
