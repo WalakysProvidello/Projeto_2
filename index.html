@@ -113,12 +113,20 @@
             border-radius: 10px;
             box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
+
+        #dataAtual {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>Controle de Ação Massiva</h2>
+    <div id="dataAtual"></div>
 
     <div class="custom-file mb-3">
         <input type="file" class="custom-file-input" id="csvFileInput" accept=".csv">
@@ -126,7 +134,9 @@
     </div>
 
     <div class="action-buttons">
-        <button class="btn btn-primary" onclick="saveTableAsCSV()">Salvar</button>
+        <button class="btn btn-info" onclick="carregarCSVDoServidor()">Carregar CSV do servidor</button>
+        <button class="btn btn-success" onclick="salvarNoSite()">Salvar no site</button>
+        <button class="btn btn-primary" onclick="saveTableAsCSV()">Exportar CSV</button>
         <button class="btn btn-danger" onclick="resetTable()">Reiniciar</button>
     </div>
 
@@ -195,6 +205,25 @@
         showFeedback('Dados salvos com sucesso!', 'success');
     }
 
+    function salvarNoSite() {
+        const tabela = document.querySelector('table');
+        if (!tabela) {
+            showFeedback('Nenhuma tabela para salvar.', 'warning');
+            return;
+        }
+
+        let csvContent = '';
+        const rows = tabela.querySelectorAll('tr');
+        rows.forEach(row => {
+            const cols = row.querySelectorAll('th, td');
+            const rowData = Array.from(cols).map(col => col.innerText.trim());
+            csvContent += rowData.join(';') + '\n';
+        });
+
+        localStorage.setItem('tableData', csvContent);
+        showFeedback('Dados salvos no site com sucesso!', 'success');
+    }
+
     function resetTable() {
         document.getElementById('tableContainer').innerHTML = '';
         localStorage.removeItem('tableData');
@@ -217,11 +246,38 @@
         label.innerText = fileName;
     });
 
+    function carregarCSVDoServidor() {
+        const loader = document.getElementById('loader');
+        loader.style.display = 'block';
+        fetch('dados.csv')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Arquivo não encontrado no servidor');
+                }
+                return response.text();
+            })
+            .then(text => {
+                createTableFromCSV(text);
+                showFeedback('Arquivo carregado do servidor com sucesso!', 'success');
+            })
+            .catch(error => {
+                showFeedback('Erro ao carregar arquivo: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                loader.style.display = 'none';
+            });
+    }
+
     window.onload = function() {
         const savedData = localStorage.getItem('tableData');
         if (savedData) {
             createTableFromCSV(savedData);
         }
+
+        // Atualiza a data atual
+        const dataAtual = new Date();
+        const dataFormatada = dataAtual.toLocaleDateString('pt-BR') + ' - ' + dataAtual.toLocaleTimeString('pt-BR');
+        document.getElementById('dataAtual').innerText = 'Atualizado em: ' + dataFormatada;
     };
 </script>
 
